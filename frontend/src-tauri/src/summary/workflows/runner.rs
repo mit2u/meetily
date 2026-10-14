@@ -160,6 +160,7 @@ async fn generate_for_workflow<R: tauri::Runtime>(
         summary_language.as_deref(),
         detected_transcript_language,
         None, // cached_english
+        None, // meeting_metadata_block
     )
     .await?;
 

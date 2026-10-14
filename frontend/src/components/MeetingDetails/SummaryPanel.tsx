@@ -1,6 +1,6 @@
 "use client";
 
-import { MeetingSummary, Summary, Transcript } from '@/types';
+import { MeetingSummary, Summary, Transcript, CalendarAttendee } from '@/types';
 import { BlockNoteSummaryView, BlockNoteSummaryViewRef } from '@/components/AISummary/BlockNoteSummaryView';
 import { EmptyStateSummary } from '@/components/EmptyStateSummary';
 import { ModelConfig } from '@/components/ModelSettingsModal';
@@ -10,7 +10,7 @@ import { WorkflowRunSection } from './WorkflowRunSection';
 import Analytics from '@/lib/analytics';
 import { useEffect, useRef, useState, RefObject } from 'react';
 import { toast } from 'sonner';
-import { Languages, ChevronDown } from 'lucide-react';
+import { Languages, ChevronDown, Users, Video } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { LanguagePickerPopover } from '@/components/LanguagePickerPopover';
@@ -28,6 +28,8 @@ interface SummaryPanelProps {
     id: string;
     title: string;
     created_at: string;
+    calendar_attendees?: string;
+    calendar_meet_link?: string;
   };
   meetingTitle: string;
   isSummaryDirty: boolean;
@@ -104,6 +106,15 @@ export function SummaryPanel({
   } | null>(null);
   activeMeetingIdRef.current = meeting.id;
   const { addRecent } = useRecentLanguages();
+
+  const calendarAttendees: CalendarAttendee[] = (() => {
+    if (!meeting.calendar_attendees) return [];
+    try {
+      return JSON.parse(meeting.calendar_attendees) as CalendarAttendee[];
+    } catch {
+      return [];
+    }
+  })();
 
   const effectiveLangLabel = summaryLang ? labelForCode(summaryLang) : 'Auto';
   const isLocalFallbackLanguage = summaryLangStorage === 'local_fallback';
@@ -246,6 +257,28 @@ export function SummaryPanel({
     <div className="flex-1 min-w-0 flex flex-col bg-white overflow-hidden h-full w-full @container">
       {/* Top-level actions — always visible, same pattern as TranscriptPanel */}
       <div className="p-4 border-b border-gray-200">
+        {(calendarAttendees.length > 0 || meeting.calendar_meet_link) && (
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500 mb-2">
+            {calendarAttendees.length > 0 && (
+              <span className="flex items-center gap-1" title={calendarAttendees.map(a => a.name || a.email).join(', ')}>
+                <Users size={12} />
+                {calendarAttendees.length} attendee{calendarAttendees.length === 1 ? '' : 's'}
+              </span>
+            )}
+            {meeting.calendar_meet_link && (
+              <a
+                href={meeting.calendar_meet_link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 hover:text-blue-600"
+              >
+                <Video size={12} />
+                Meet link
+              </a>
+            )}
+          </div>
+        )}
+
         <div className="flex items-center justify-center w-full min-w-0 gap-2 flex-wrap">
           <div className="flex-shrink-0 min-w-0">
             <SummaryGeneratorButtonGroup

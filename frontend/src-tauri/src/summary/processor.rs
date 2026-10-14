@@ -381,6 +381,7 @@ pub(crate) async fn generate_meeting_summary(
     summary_language: Option<&str>,
     detected_transcript_language: Option<&str>,
     cached_english: Option<&str>,
+    meeting_metadata_block: Option<&str>,
 ) -> Result<GeneratedMeetingSummary, String> {
     if cancellation_token.is_some_and(CancellationToken::is_cancelled) {
         return Err("Summary generation was cancelled".to_string());
@@ -497,6 +498,11 @@ pub(crate) async fn generate_meeting_summary(
             );
             let mut final_user_prompt =
                 format!("<transcript_chunks>\n{content_to_summarize}\n</transcript_chunks>\n");
+            if let Some(metadata_block) = meeting_metadata_block {
+                final_user_prompt.push('\n');
+                final_user_prompt.push_str(metadata_block);
+                final_user_prompt.push('\n');
+            }
             if !custom_prompt.is_empty() {
                 final_user_prompt.push_str("\n\nUser Provided Context:\n\n<user_context>\n");
                 final_user_prompt.push_str(custom_prompt);

@@ -545,6 +545,7 @@ impl SummaryService {
 
         let vocab_cfg = SettingsRepository::get_vocabulary_config(&pool).await.ok().flatten().unwrap_or_default();
         let custom_prompt = crate::vocabulary::prepend_glossary(custom_prompt, &vocab_cfg.glossary_entries(), 2000);
+        let meeting_metadata_block = Self::build_calendar_metadata_block(&pool, &meeting_id).await;
 
         let client = reqwest::Client::new();
         let result = generate_meeting_summary(
@@ -567,6 +568,7 @@ impl SummaryService {
             summary_language.as_deref(),
             detected_summary_language.as_deref(),
             cached_english.as_deref(),
+            meeting_metadata_block.as_deref(),
         )
         .await;
 
@@ -687,6 +689,51 @@ impl SummaryService {
     }
 
 
+
+    /// Builds a `<meeting_metadata>` block from calendar-derived fields (title, attendees,
+    /// scheduled time) if a Google Calendar event was matched onto this meeting. Absent when
+    /// the meeting has no calendar match — most meetings, since Calendar integration is optional.
+    async fn build_calendar_metadata_block(pool: &SqlitePool, meeting_id: &str) -> Option<String> {
+        let meeting = MeetingsRepository::get_meeting_metadata(pool, meeting_id)
+            .await
+            .ok()
+            .flatten()?;
+
+        let attendees: Vec<String> = meeting
+            .calendar_attendees
+            .as_deref()
+            .and_then(|json| serde_json::from_str::<Vec<crate::calendar::Attendee>>(json).ok())
+            .map(|attendees| {
+                attendees
+                    .into_iter()
+                    .map(|a| a.name.unwrap_or(a.email))
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        if attendees.is_empty()
+            && meeting.calendar_start_time.is_none()
+            && meeting.calendar_meet_link.is_none()
+        {
+            return None;
+        }
+
+        let mut block = format!("<meeting_metadata>\nTitle: {}\n", meeting.title);
+        if !attendees.is_empty() {
+            block.push_str(&format!("Attendees: {}\n", attendees.join(", ")));
+        }
+        if let Some(start) = &meeting.calendar_start_time {
+            block.push_str(&format!("Scheduled start: {}\n", start));
+        }
+        if let Some(end) = &meeting.calendar_end_time {
+            block.push_str(&format!("Scheduled end: {}\n", end));
+        }
+        if let Some(meet_link) = &meeting.calendar_meet_link {
+            block.push_str(&format!("Meet link: {}\n", meet_link));
+        }
+        block.push_str("</meeting_metadata>");
+        Some(block)
+    }
 }
 
 #[cfg(test)]

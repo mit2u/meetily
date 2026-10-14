@@ -519,6 +519,11 @@ mod tests {
             created_at: DateTimeUtc(chrono::Utc.with_ymd_and_hms(2026, 7, 15, 14, 30, 0).unwrap()),
             updated_at: DateTimeUtc(chrono::Utc.with_ymd_and_hms(2026, 7, 15, 15, 0, 0).unwrap()),
             folder_path: None,
+            calendar_event_id: None,
+            calendar_attendees: None,
+            calendar_meet_link: None,
+            calendar_start_time: None,
+            calendar_end_time: None,
         }
     }
 
