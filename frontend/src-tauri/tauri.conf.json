@@ -118,7 +118,7 @@
         "updater": {
             "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDhGMTIxMjFERjkwRUMyM0IKUldRN3dnNzVIUklTajIyVWxSemx3RVdYR0pwdVZvU1pYdFduRjQwb3YxQ0pRVzdwbXYwRno5VTgK",
             "endpoints": [
-                "https://github.com/Nader-Awad/meetily/releases/latest/download/latest.json"
+                "https://github.com/mit2u/meetily/releases/latest/download/latest.json"
             ]
         }
     }
