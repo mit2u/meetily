@@ -140,7 +140,7 @@ async fn generate_for_workflow<R: tauri::Runtime>(
     let client = Client::new();
 
     let detected_transcript_language: Option<&str> = None; // Auto path; language detection handled elsewhere
-    let (final_markdown, _english_markdown, _num_chunks) = generate_meeting_summary(
+    let summary = generate_meeting_summary(
         &client,
         &provider,
         &workflow.model,
@@ -163,7 +163,7 @@ async fn generate_for_workflow<R: tauri::Runtime>(
     )
     .await?;
 
-    Ok((final_markdown, section_titles))
+    Ok((summary.final_markdown, section_titles))
 }
 
 /// Reads ollama endpoint + custom-openai endpoint from settings (best-effort).
