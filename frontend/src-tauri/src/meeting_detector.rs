@@ -13,7 +13,7 @@
 // Polling interval: 10s (light on CPU, catches meeting starts within 10s).
 
 use std::process::Command;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::time::Duration;
 
 use tauri::{AppHandle, Runtime};
@@ -21,6 +21,16 @@ use tauri::{AppHandle, Runtime};
 use crate::tray;
 
 static AUTO_STARTED: AtomicBool = AtomicBool::new(false);
+/// Consecutive polls with no meeting signal while our auto-recording runs.
+static MISSED_POLLS: AtomicU32 = AtomicU32::new(0);
+/// Set when the user stops a recording mid-meeting, so we don't restart it
+/// until that meeting ends.
+static SUPPRESSED: AtomicBool = AtomicBool::new(false);
+
+/// A single poll can miss a live meeting (slow/failed osascript, Zoom retitling
+/// its window while screen-sharing, a reloaded Meet tab), so only auto-stop
+/// after this many consecutive misses (~60s at the 10s interval).
+const MISSES_BEFORE_STOP: u32 = 6;
 
 /// Apps whose presence in the process list is a "call-only" signal — these
 /// apps are launched to make/join a call, not left idling. Zoom is EXCLUDED
@@ -208,24 +218,41 @@ pub fn spawn<R: Runtime>(app: AppHandle<R>) {
             let currently_recording = crate::is_recording().await;
             let we_started = AUTO_STARTED.load(Ordering::Relaxed);
 
+            if meeting_active {
+                MISSED_POLLS.store(0, Ordering::Relaxed);
+            } else {
+                SUPPRESSED.store(false, Ordering::Relaxed);
+            }
+
             match (meeting_active, currently_recording, we_started) {
-                // Meeting detected, not recording → auto-start
-                (true, false, _) => {
+                // Meeting detected, not recording → auto-start (unless the user stopped it)
+                (true, false, _) if !SUPPRESSED.load(Ordering::Relaxed) => {
                     let reason = match (&proc_hit, &url_hit) {
                         (Some(p), _) => format!("process={}", p),
                         (_, Some(u)) => format!("url={}", u.chars().take(80).collect::<String>()),
                         _ => "(unknown)".into(),
                     };
-                    log::info!("[auto-detect] meeting detected ({}) → auto-starting recording", reason);
-                    tray::toggle_recording_handler(&app);
-                    AUTO_STARTED.store(true, Ordering::Relaxed);
+                    if we_started {
+                        // Our recording was stopped by the user while the meeting is live
+                        log::info!("[auto-detect] recording stopped manually mid-meeting → not restarting");
+                        AUTO_STARTED.store(false, Ordering::Relaxed);
+                        SUPPRESSED.store(true, Ordering::Relaxed);
+                    } else {
+                        log::info!("[auto-detect] meeting detected ({}) → auto-starting recording", reason);
+                        tray::toggle_recording_handler(&app);
+                        AUTO_STARTED.store(true, Ordering::Relaxed);
+                    }
                 }
 
-                // No meeting active, we started this recording → auto-stop
+                // No meeting signal, we started this recording → stop after sustained absence
                 (false, true, true) => {
-                    log::info!("[auto-detect] no meeting active → stopping our auto-recording");
-                    tray::toggle_recording_handler(&app);
-                    AUTO_STARTED.store(false, Ordering::Relaxed);
+                    let misses = MISSED_POLLS.fetch_add(1, Ordering::Relaxed) + 1;
+                    if misses >= MISSES_BEFORE_STOP {
+                        log::info!("[auto-detect] no meeting for {} polls → stopping our auto-recording", misses);
+                        tray::toggle_recording_handler(&app);
+                        AUTO_STARTED.store(false, Ordering::Relaxed);
+                        MISSED_POLLS.store(0, Ordering::Relaxed);
+                    }
                 }
 
                 // Recording stopped (probably by user) → clear our flag
