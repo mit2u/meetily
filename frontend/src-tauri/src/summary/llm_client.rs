@@ -6,7 +6,7 @@ use std::time::Duration;
 use tokio_util::sync::CancellationToken;
 use tracing::{info, warn};
 
-const REQUEST_TIMEOUT_DURATION: Duration = Duration::from_secs(300);
+const REQUEST_TIMEOUT_DURATION: Duration = Duration::from_secs(30 * 60);
 
 async fn await_or_cancel<T>(
     operation: impl Future<Output = T>,
