@@ -493,7 +493,7 @@ pub fn run() {
     //
     // Two shortcuts registered:
     //   - F13            → for external keyboards (Wispr-Flow style single key)
-    //   - Cmd+Shift+M    → laptop-friendly fallback (M for Meeting, right-hand only)
+    //   - Ctrl+Option+Cmd+R → laptop-friendly fallback (Cmd+Shift+M is Teams' mute toggle)
     //
     // Requires macOS Accessibility permission (System Settings > Privacy > Accessibility)
     // for global hotkeys to actually fire. Plugin register() succeeds silently
@@ -504,11 +504,11 @@ pub fn run() {
 
         let f13_shortcut = Shortcut::new(None, Code::F13);
         let combo_shortcut = Shortcut::new(
-            Some(Modifiers::META | Modifiers::SHIFT),
-            Code::KeyM,
+            Some(Modifiers::CONTROL | Modifiers::ALT | Modifiers::META),
+            Code::KeyR,
         );
 
-        log::info!("Global hotkeys: registering F13 and Cmd+Shift+M → toggle recording");
+        log::info!("Global hotkeys: registering F13 and Ctrl+Option+Cmd+R → toggle recording");
 
         tauri_plugin_global_shortcut::Builder::new()
             .with_shortcuts([f13_shortcut, combo_shortcut])

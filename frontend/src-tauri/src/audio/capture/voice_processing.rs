@@ -49,6 +49,12 @@ impl VoiceProcessingCapture {
         // Optionally enable AGC for consistent mic levels
         input_node.set_vp_agc_enabled(true);
 
+        // Voice Processing ducks other apps' audio by default; keep it to Apple's minimum
+        input_node.set_vp_other_audio_ducking_cfg(av::audio::VpOtherAudioDuckingCfg {
+            enable_advanced_ducking: false,
+            ducking_level: av::audio::VpOtherAudioDuckingLevel::Min,
+        });
+
         info!("Voice Processing enabled - VP: {}, AGC: {}",
               input_node.is_vp_enabled(), input_node.is_vp_agc_enabled());
 
