@@ -84,7 +84,12 @@ impl AudioStream {
         };
 
         #[cfg(target_os = "macos")]
-        if device_type == DeviceType::Microphone && mic_is_default {
+        // Off by default: Voice Processing lowers other apps' audio while recording.
+        // Opt in with MEETILY_ECHO_CANCELLATION=1.
+        if device_type == DeviceType::Microphone
+            && mic_is_default
+            && std::env::var_os("MEETILY_ECHO_CANCELLATION").is_some()
+        {
             info!("🎤 Stream: Using Voice Processing (AEC) for microphone: {}", device.name);
             match Self::create_voice_processing_stream(device.clone(), state.clone(), recording_sender.clone()).await {
                 Ok(stream) => return Ok(stream),
